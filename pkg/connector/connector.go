@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"github.com/conductorone/baton-freshbooks/pkg/client"
 	"io"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -9,12 +10,15 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
-type Connector struct{}
+type Connector struct {
+	client *client.FreshBooksClient
+}
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
 func (d *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
-		newUserBuilder(),
+		newUserBuilder(d.client),
+		newRoleBuilder(d.client),
 	}
 }
 
@@ -40,5 +44,12 @@ func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 
 // New returns a new instance of the connector.
 func New(ctx context.Context) (*Connector, error) {
-	return &Connector{}, nil
+	fbc, err := client.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Connector{
+		client: fbc,
+	}, nil
 }
