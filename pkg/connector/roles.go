@@ -26,7 +26,7 @@ func (r *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return roleResourceType
 }
 
-// List retrieves a hardcoded list of available Roles, since they are fixed (not modifications neither creation) and cannot be requested to the API.
+// List retrieves a hardcoded list of available Roles, since they are fixed (not modifications neither creation allowed by the platform) and cannot be requested to the API.
 func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	availableRoles := []client.Role{
 		{RoleName: "admin", BusinessRoleName: "owner"},                 // Admin Role.
@@ -37,7 +37,6 @@ func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.To
 	}
 
 	var ret []*v2.Resource
-
 	for _, role := range availableRoles {
 		roleCopy := role
 		roleResource, err := parseIntoRoleResource(&roleCopy, nil)
@@ -66,6 +65,12 @@ func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 
 func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	var ret []*v2.Grant
+
+	err := r.client.EnsureBusinessID(ctx)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	
 	teamMembers, err := r.GetAllTeamMembers(ctx)
 	if err != nil {
 		return nil, "", nil, err

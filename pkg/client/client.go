@@ -8,58 +8,114 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/tomnomnom/linkheader"
+	"golang.org/x/oauth2"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 )
 
 const (
+	getNewToken = "https://api.freshbooks.com/auth/oauth/token"
+
 	baseURL = "https://api.freshbooks.com/auth/api/v1/businesses/"
 
-	getTeamMembers = "/team_members"
-
 	getBussinessID = "https://api.freshbooks.com/auth/api/v1/users/me"
+
+	getTeamMembers = "/team_members"
 )
 
 type FreshBooksClient struct {
-	client     *uhttp.BaseHttpClient
-	businessID string
-	token      string
+	client      *uhttp.BaseHttpClient
+	TokenSource oauth2.TokenSource
+	Config      Config
 }
 
-func (f *FreshBooksClient) WithBearerToken(apiToken string) *FreshBooksClient {
-	f.token = apiToken
-	return f
+type Config struct {
+	businessID      string
+	businessIDMutex sync.Mutex
+	clientID        string
+	clientSecret    string
+	refreshToken    string
 }
 
-func (f *FreshBooksClient) WithBusinessID(businessID string) *FreshBooksClient {
-	f.businessID = businessID
-	return f
-}
+type Option func(client *FreshBooksClient)
 
-func NewClient() *FreshBooksClient {
-	return &FreshBooksClient{
-		client:     &uhttp.BaseHttpClient{},
-		token:      "",
-		businessID: "",
+func WithBearerToken(apiToken string) Option {
+	return func(client *FreshBooksClient) {
+		client.SetToken(apiToken)
 	}
 }
 
+func WithRefreshToken(refreshToken string) Option {
+	return func(client *FreshBooksClient) {
+		client.Config.refreshToken = refreshToken
+	}
+}
+
+func WithClientID(clientID string) Option {
+	return func(client *FreshBooksClient) {
+		client.Config.clientID = clientID
+	}
+}
+
+func WithClientSecret(clientSecret string) Option {
+	return func(client *FreshBooksClient) {
+		client.Config.clientSecret = clientSecret
+	}
+}
+
+func WithBusinessID(businessID int64) Option {
+	return func(client *FreshBooksClient) {
+		client.SetBusinessID(businessID)
+	}
+}
+
+func (f *FreshBooksClient) EnsureBusinessID(ctx context.Context) error {
+	f.Config.businessIDMutex.Lock()
+	defer f.Config.businessIDMutex.Unlock()
+
+	if f.GetBusinessID() == "" {
+		businessID, err := f.RequestBusinessID(ctx)
+		if err != nil {
+			return err
+		}
+		f.SetBusinessID(businessID)
+	}
+
+	return nil
+}
+
+func NewClient(otps ...Option) *FreshBooksClient {
+	client := &FreshBooksClient{
+		client: &uhttp.BaseHttpClient{},
+	}
+
+	for _, o := range otps {
+		o(client)
+	}
+
+	return client
+}
+
 func (f *FreshBooksClient) GetBusinessID() string {
-	return f.businessID
+	return f.Config.businessID
 }
 
 func (f *FreshBooksClient) SetBusinessID(bid int64) {
-	f.businessID = strconv.FormatInt(bid, 10)
+	f.Config.businessID = strconv.FormatInt(bid, 10)
 }
 
-func (f *FreshBooksClient) GetToken() string {
-	return f.token
+func (f *FreshBooksClient) GetToken() (*oauth2.Token, error) {
+	return f.TokenSource.Token()
 }
 
-func New(ctx context.Context) (*FreshBooksClient, error) {
-	clientToken := ""
+func (f *FreshBooksClient) SetToken(token string) {
+	f.TokenSource = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+}
+
+func New(ctx context.Context, opts ...Option) (*FreshBooksClient, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {
 		return nil, err
@@ -71,15 +127,17 @@ func New(ctx context.Context) (*FreshBooksClient, error) {
 	}
 
 	fbClient := FreshBooksClient{
-		client:     cli,
-		token:      clientToken,
-		businessID: "",
+		client: cli,
+	}
+
+	for _, o := range opts {
+		o(&fbClient)
 	}
 
 	return &fbClient, nil
 }
 
-// getListFromAPI sends a request to the Freshdesk API to receive a JSON with a list of entities.
+// getListFromAPI sends a request to the FreshBooks API to receive a JSON with a list of entities.
 func (f *FreshBooksClient) getListFromAPI(
 	ctx context.Context,
 	urlAddress string,
@@ -162,13 +220,19 @@ func (f *FreshBooksClient) doRequest(
 	for _, o := range reqOpts {
 		o(urlAddress)
 	}
+
+	clientToken, err := f.GetToken()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := f.client.NewRequest(
 		ctx,
 		method,
 		urlAddress,
 		uhttp.WithAcceptJSONHeader(),
 		uhttp.WithContentTypeJSONHeader(),
-		uhttp.WithHeader("Authorization", "Bearer "+f.GetToken()),
+		uhttp.WithHeader("Authorization", "Bearer "+clientToken.AccessToken),
 	)
 	if err != nil {
 		return nil, nil, err

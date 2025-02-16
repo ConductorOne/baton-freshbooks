@@ -43,12 +43,22 @@ func main() {
 }
 
 func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
+	// Get arguments from Viper
+	fbAccessToken := v.GetString(token)
+	//fbRefreshToken := v.GetString(refreshToken)
+	//fbClientID := v.GetString(clientID)
+	//fbClientSecret := v.GetString(clientSecret)
+
 	l := ctxzap.Extract(ctx)
+
 	if err := ValidateConfig(v); err != nil {
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx)
+	connectorOpts := []connector.Option{
+		connector.WithAccessToken(ctx, fbAccessToken),
+	}
+	cb, err := connector.New(ctx, connectorOpts...)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err
