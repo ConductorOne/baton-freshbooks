@@ -3,12 +3,13 @@ package connector
 import (
 	"context"
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 var (
@@ -24,8 +25,7 @@ var (
 
 func TestUserBuilderListWithAcessToken(t *testing.T) {
 	if accessToken == "" {
-		message = fmt.Sprintf("param token missing")
-		t.Fatal(message)
+		t.Fatal("param token missing")
 	}
 
 	c, err := client.New(
@@ -46,8 +46,7 @@ func TestUserBuilderListWithAcessToken(t *testing.T) {
 
 func TestUserBuilderListWithRefreshToken(t *testing.T) {
 	if refreshToken == "" && clientID == "" && clientSecret == "" {
-		message = fmt.Sprintf("the params refresh-token, fb-client-id and fb-client-secret must be used")
-		t.Fatal(message)
+		t.Fatal("the params refresh-token, fb-client-id and fb-client-secret must be used")
 	}
 
 	c, err := client.New(

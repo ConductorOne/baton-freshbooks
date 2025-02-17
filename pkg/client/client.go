@@ -4,21 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/tomnomnom/linkheader"
-	"golang.org/x/oauth2"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"github.com/tomnomnom/linkheader"
+	"golang.org/x/oauth2"
 )
 
 const (
-	getNewTokenURL = "https://api.freshbooks.com/auth/oauth/token"
+	getNewToken    = "https://api.freshbooks.com/auth/oauth/token" // #nosec G101
 	getBussinessID = "https://api.freshbooks.com/auth/api/v1/users/me"
 
 	baseURL        = "https://api.freshbooks.com/auth/api/v1/businesses/"
@@ -45,7 +46,7 @@ func WithBearerToken(apiToken string) Option {
 }
 
 // WithRefreshToken it receives a Refresh Token, Client ID and Client Secret from the platform to be able to renew the token when expired.
-// The 3 arguments should be received when the connector is executed
+// The 3 arguments should be received when the connector is executed.
 func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) Option {
 	return func(client *FreshBooksClient) {
 		token := &oauth2.Token{
@@ -58,7 +59,7 @@ func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret 
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			Endpoint: oauth2.Endpoint{
-				TokenURL: getNewTokenURL,
+				TokenURL: getNewToken,
 			},
 		}
 		tokenSource := oauth2.ReuseTokenSource(token, config.TokenSource(ctx, token))
@@ -169,13 +170,13 @@ func (f *FreshBooksClient) RequestBusinessID(ctx context.Context) (int64, error)
 	var response ResponseBID
 	var opts []ReqOpt
 	queryUrl := getBussinessID
-	
+
 	_, _, err := f.doRequest(ctx, http.MethodGet, queryUrl, &response, nil, opts...)
 	if err != nil {
 		return 0, err
 	}
 
-	if response.Response.BusinessMemberships == nil || len(response.Response.BusinessMemberships) == 0 {
+	if len(response.Response.BusinessMemberships) == 0 {
 		return 0, fmt.Errorf("business ID not found")
 	}
 
@@ -222,6 +223,9 @@ func (f *FreshBooksClient) doRequest(
 	}
 
 	resp, err = f.client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
 	if resp != nil {
 		defer resp.Body.Close()
 	}

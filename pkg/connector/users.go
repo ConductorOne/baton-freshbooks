@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"

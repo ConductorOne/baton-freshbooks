@@ -2,13 +2,14 @@ package connector
 
 import (
 	"context"
+	"sync"
+
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
-	"sync"
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 )
@@ -91,7 +92,7 @@ func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMembe
 	defer r.teamMembersMutex.Unlock()
 
 	var ret []client.TeamMember
-	if r.teamMembers != nil && len(r.teamMembers) > 0 {
+	if len(r.teamMembers) > 0 {
 		return r.teamMembers, nil
 	}
 
@@ -99,7 +100,7 @@ func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMembe
 	if err != nil {
 		return nil, err
 	}
-	
+
 	paginationToken := pagination.Token{Size: 50, Token: ""}
 	for {
 		bag, pageToken, err := getToken(&paginationToken, userResourceType)
@@ -111,10 +112,11 @@ func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMembe
 			Page:    pageToken,
 			PerPage: paginationToken.Size,
 		})
-
-		for _, tm := range teamMembers {
-			ret = append(ret, tm)
+		if err != nil {
+			return nil, err
 		}
+
+		ret = append(ret, teamMembers...)
 
 		err = bag.Next(nextPageToken)
 		if err != nil {

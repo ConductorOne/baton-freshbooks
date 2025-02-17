@@ -3,8 +3,9 @@ package connector
 import (
 	"context"
 	"fmt"
-	"github.com/conductorone/baton-freshbooks/pkg/client"
 	"io"
+
+	"github.com/conductorone/baton-freshbooks/pkg/client"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -32,7 +33,7 @@ func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret 
 		}
 		fbc, err := client.New(ctx, clientOpts...)
 		if err != nil {
-			return fmt.Errorf("error applying option WithRefreshToken: %v", err)
+			return fmt.Errorf("error applying option WithRefreshToken: %w", err)
 		}
 
 		c.client = fbc
@@ -44,7 +45,7 @@ func WithAccessToken(ctx context.Context, accessToken string) Option {
 	return func(c *Connector) error {
 		fbc, err := client.New(ctx, client.WithBearerToken(accessToken))
 		if err != nil {
-			return fmt.Errorf("error applying option WithAccessToken: %v", err)
+			return fmt.Errorf("error applying option WithAccessToken: %w", err)
 		}
 
 		c.client = fbc

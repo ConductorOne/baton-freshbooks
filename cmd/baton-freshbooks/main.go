@@ -53,10 +53,8 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 
 	if argAccessToken != "" {
 		connectorOpts = append(connectorOpts, connector.WithAccessToken(ctx, argAccessToken))
-	} else {
-		if argRefreshToken != "" && argClientID != "" && argClientSecret != "" {
-			connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, argRefreshToken, argClientID, argClientSecret))
-		}
+	} else if argRefreshToken != "" && argClientID != "" && argClientSecret != "" {
+		connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, argRefreshToken, argClientID, argClientSecret))
 	}
 
 	if len(connectorOpts) == 0 {

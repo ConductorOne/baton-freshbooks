@@ -32,7 +32,7 @@ var (
 		field.FieldsRequiredTogether(ClientIDField, ClientSecretField),
 	}
 
-	//ConfigurationSchema = field.NewConfiguration(ConfigurationFields, FieldRelationships...)
+	// ConfigurationSchema = field.NewConfiguration(ConfigurationFields, FieldRelationships...)
 )
 
 // ValidateConfig is run after the configuration is loaded, and should return an
