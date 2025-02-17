@@ -44,10 +44,24 @@ func main() {
 
 func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
 	// Get arguments from Viper
-	fbAccessToken := v.GetString(token)
-	//fbRefreshToken := v.GetString(refreshToken)
-	//fbClientID := v.GetString(clientID)
-	//fbClientSecret := v.GetString(clientSecret)
+	argAccessToken := v.GetString(token)
+	argRefreshToken := v.GetString(refreshToken)
+	argClientID := v.GetString(fbClientID)
+	argClientSecret := v.GetString(fbClientSecret)
+
+	var connectorOpts []connector.Option
+
+	if argAccessToken != "" {
+		connectorOpts = append(connectorOpts, connector.WithAccessToken(ctx, argAccessToken))
+	} else {
+		if argRefreshToken != "" && argClientID != "" && argClientSecret != "" {
+			connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, argRefreshToken, argClientID, argClientSecret))
+		}
+	}
+
+	if len(connectorOpts) == 0 {
+		return nil, fmt.Errorf("[token] or [refresh-token, fb-client-id, fb-client-secret] argumetns must provided")
+	}
 
 	l := ctxzap.Extract(ctx)
 
@@ -55,9 +69,6 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 		return nil, err
 	}
 
-	connectorOpts := []connector.Option{
-		connector.WithAccessToken(ctx, fbAccessToken),
-	}
 	cb, err := connector.New(ctx, connectorOpts...)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))

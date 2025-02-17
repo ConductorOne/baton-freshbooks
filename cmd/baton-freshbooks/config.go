@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	TokenField        = field.StringField(token, field.WithRequired(true), field.WithDescription("Token to request data from the FreshBooks APIs"))
+	TokenField        = field.StringField(token, field.WithRequired(false), field.WithDescription("Token to request data from the FreshBooks APIs"))
 	RefreshTokenField = field.StringField(refreshToken, field.WithRequired(false), field.WithDescription("Refresh token used to get a new access token from FreshBooks"))
 	ClientIDField     = field.StringField(fbClientID, field.WithRequired(false), field.WithDescription("Refresh token used to get a new access token from FreshBooks"))
 	ClientSecretField = field.StringField(fbClientSecret, field.WithRequired(false), field.WithDescription("Refresh token used to get a new access token from FreshBooks"))

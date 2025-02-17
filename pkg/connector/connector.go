@@ -28,9 +28,7 @@ func (d *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.Reso
 func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) Option {
 	return func(c *Connector) error {
 		clientOpts := []client.Option{
-			client.WithRefreshToken(refreshToken),
-			client.WithClientID(clientID),
-			client.WithClientSecret(clientSecret),
+			client.WithRefreshToken(ctx, refreshToken, clientID, clientSecret),
 		}
 		fbc, err := client.New(ctx, clientOpts...)
 		if err != nil {

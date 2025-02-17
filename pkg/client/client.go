@@ -14,15 +14,14 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 )
 
 const (
-	getNewToken = "https://api.freshbooks.com/auth/oauth/token"
-
-	baseURL = "https://api.freshbooks.com/auth/api/v1/businesses/"
-
+	getNewTokenURL = "https://api.freshbooks.com/auth/oauth/token"
 	getBussinessID = "https://api.freshbooks.com/auth/api/v1/users/me"
 
+	baseURL        = "https://api.freshbooks.com/auth/api/v1/businesses/"
 	getTeamMembers = "/team_members"
 )
 
@@ -35,9 +34,6 @@ type FreshBooksClient struct {
 type Config struct {
 	businessID      string
 	businessIDMutex sync.Mutex
-	clientID        string
-	clientSecret    string
-	refreshToken    string
 }
 
 type Option func(client *FreshBooksClient)
@@ -48,27 +44,26 @@ func WithBearerToken(apiToken string) Option {
 	}
 }
 
-func WithRefreshToken(refreshToken string) Option {
+// WithRefreshToken it receives a Refresh Token, Client ID and Client Secret from the platform to be able to renew the token when expired.
+// The 3 arguments should be received when the connector is executed
+func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) Option {
 	return func(client *FreshBooksClient) {
-		client.Config.refreshToken = refreshToken
-	}
-}
+		token := &oauth2.Token{
+			AccessToken:  "",
+			RefreshToken: refreshToken,
+			Expiry:       time.Now().Add(-1 * time.Second),
+		}
 
-func WithClientID(clientID string) Option {
-	return func(client *FreshBooksClient) {
-		client.Config.clientID = clientID
-	}
-}
+		config := oauth2.Config{
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			Endpoint: oauth2.Endpoint{
+				TokenURL: getNewTokenURL,
+			},
+		}
+		tokenSource := oauth2.ReuseTokenSource(token, config.TokenSource(ctx, token))
 
-func WithClientSecret(clientSecret string) Option {
-	return func(client *FreshBooksClient) {
-		client.Config.clientSecret = clientSecret
-	}
-}
-
-func WithBusinessID(businessID int64) Option {
-	return func(client *FreshBooksClient) {
-		client.SetBusinessID(businessID)
+		client.TokenSource = tokenSource
 	}
 }
 
@@ -85,18 +80,6 @@ func (f *FreshBooksClient) EnsureBusinessID(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func NewClient(otps ...Option) *FreshBooksClient {
-	client := &FreshBooksClient{
-		client: &uhttp.BaseHttpClient{},
-	}
-
-	for _, o := range otps {
-		o(client)
-	}
-
-	return client
 }
 
 func (f *FreshBooksClient) GetBusinessID() string {
@@ -183,10 +166,10 @@ func (f *FreshBooksClient) ListTeamMembers(ctx context.Context, opts PageOptions
 }
 
 func (f *FreshBooksClient) RequestBusinessID(ctx context.Context) (int64, error) {
-	queryUrl := getBussinessID
 	var response ResponseBID
-
 	var opts []ReqOpt
+	queryUrl := getBussinessID
+	
 	_, _, err := f.doRequest(ctx, http.MethodGet, queryUrl, &response, nil, opts...)
 	if err != nil {
 		return 0, err
@@ -204,7 +187,7 @@ func (f *FreshBooksClient) doRequest(
 	method string,
 	endpointUrl string,
 	res interface{},
-	body interface{},
+	_ interface{},
 	reqOpts ...ReqOpt,
 ) (http.Header, annotations.Annotations, error) {
 	var (

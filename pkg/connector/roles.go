@@ -66,11 +66,6 @@ func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	var ret []*v2.Grant
 
-	err := r.client.EnsureBusinessID(ctx)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	
 	teamMembers, err := r.GetAllTeamMembers(ctx)
 	if err != nil {
 		return nil, "", nil, err
@@ -100,6 +95,11 @@ func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMembe
 		return r.teamMembers, nil
 	}
 
+	err := r.client.EnsureBusinessID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
 	paginationToken := pagination.Token{Size: 50, Token: ""}
 	for {
 		bag, pageToken, err := getToken(&paginationToken, userResourceType)
