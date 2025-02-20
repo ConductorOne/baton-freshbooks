@@ -2,7 +2,7 @@
 
 # `baton-freshbooks` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-freshbooks.svg)](https://pkg.go.dev/github.com/conductorone/baton-freshbooks) ![main ci](https://github.com/conductorone/baton-freshbooks/actions/workflows/main.yaml/badge.svg)
 
-`baton-freshbooks` is a connector for FreshBooks(https://www.freshbooks.com/) built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
+`baton-freshbooks` is a connector for [FreshBooks](https://www.freshbooks.com/) built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 This connector allows you to interact with the platform and to view the list of users and the permissions that each one has. However, the modification of the permits isn't available, since the platform does not allow modifications of this type to be made from the API.
 FreshBooks uses OAuth 2.0 with the Authorization Code grant type.
 
