@@ -39,8 +39,7 @@ func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.To
 
 	var ret []*v2.Resource
 	for _, role := range availableRoles {
-		roleCopy := role
-		roleResource, err := parseIntoRoleResource(&roleCopy, nil)
+		roleResource, err := parseIntoRoleResource(role, nil)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -74,7 +73,7 @@ func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 
 	for _, teamMember := range teamMembers {
 		if teamMember.BusinessRoleName == resource.Id.Resource {
-			userResource, err := parseIntoUserResource(&teamMember, nil)
+			userResource, err := parseIntoUserResource(teamMember, nil)
 			if err != nil {
 				return nil, "", nil, err
 			}
@@ -132,8 +131,8 @@ func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMembe
 	return ret, nil
 }
 
-// This function parses a role from FreshBooks into a Role Resource.
-func parseIntoRoleResource(role *client.Role, _ *v2.ResourceId) (*v2.Resource, error) {
+// parseIntoRoleResource parses a role from FreshBooks into a Role Resource.
+func parseIntoRoleResource(role client.Role, _ *v2.ResourceId) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"id":   role.BusinessRoleName,
 		"name": role.RoleName,

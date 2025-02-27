@@ -14,16 +14,16 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/tomnomnom/linkheader"
 	"golang.org/x/oauth2"
 )
 
 const (
-	getNewToken    = "https://api.freshbooks.com/auth/oauth/token" // #nosec G101
-	getBussinessID = "https://api.freshbooks.com/auth/api/v1/users/me"
+	baseURL       = "https://api.freshbooks.com/auth"
+	getNewToken   = "/oauth/token" // #nosec G101
+	getBusinessID = "/api/v1/users/me"
 
-	baseURL        = "https://api.freshbooks.com/auth/api/v1/businesses/"
-	getTeamMembers = "/team_members"
+	businessBaseURL = "/api/v1/businesses/"
+	getTeamMembers  = "/team_members"
 )
 
 type FreshBooksClient struct {
@@ -59,7 +59,7 @@ func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret 
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			Endpoint: oauth2.Endpoint{
-				TokenURL: getNewToken,
+				TokenURL: baseURL + getNewToken,
 			},
 		}
 		tokenSource := oauth2.ReuseTokenSource(token, config.TokenSource(ctx, token))
@@ -72,7 +72,7 @@ func (f *FreshBooksClient) EnsureBusinessID(ctx context.Context) error {
 	f.Config.businessIDMutex.Lock()
 	defer f.Config.businessIDMutex.Unlock()
 
-	if f.GetBusinessID() == "" {
+	if f.BusinessID() == "" {
 		businessID, err := f.RequestBusinessID(ctx)
 		if err != nil {
 			return err
@@ -83,7 +83,7 @@ func (f *FreshBooksClient) EnsureBusinessID(ctx context.Context) error {
 	return nil
 }
 
-func (f *FreshBooksClient) GetBusinessID() string {
+func (f *FreshBooksClient) BusinessID() string {
 	return f.Config.businessID
 }
 
@@ -91,7 +91,7 @@ func (f *FreshBooksClient) SetBusinessID(bid int64) {
 	f.Config.businessID = strconv.FormatInt(bid, 10)
 }
 
-func (f *FreshBooksClient) GetToken() (*oauth2.Token, error) {
+func (f *FreshBooksClient) Token() (*oauth2.Token, error) {
 	return f.TokenSource.Token()
 }
 
@@ -127,40 +127,33 @@ func (f *FreshBooksClient) getListFromAPI(
 	urlAddress string,
 	res any,
 	reqOpt ...ReqOpt,
-) (string, annotations.Annotations, error) {
-	header, annotation, err := f.doRequest(ctx, http.MethodGet, urlAddress, &res, nil, reqOpt...)
+) (annotations.Annotations, error) {
+	annotation, err := f.doRequest(ctx, http.MethodGet, urlAddress, &res, nil, reqOpt...)
 
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	var pageToken string
-	pagingLinks := linkheader.Parse(header.Get("Link"))
-	for _, link := range pagingLinks {
-		if link.Rel == "next" {
-			nextPageUrl, err := url.Parse(link.URL)
-			if err != nil {
-				return "", nil, err
-			}
-			pageToken = nextPageUrl.Query().Get("page")
-			break
-		}
-	}
-
-	return pageToken, annotation, nil
+	return annotation, nil
 }
 
 // ListTeamMembers Gets all the Team Members from FreshBooks and deserialized them into an Array.
 func (f *FreshBooksClient) ListTeamMembers(ctx context.Context, opts PageOptions) ([]TeamMember, string, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(baseURL, f.GetBusinessID(), getTeamMembers)
+	queryUrl, err := url.JoinPath(baseURL, businessBaseURL, f.BusinessID(), getTeamMembers)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
 	var res Response
-	nextPage, annotation, err := f.getListFromAPI(ctx, queryUrl, &res, WithPage(opts.Page), WithPageLimit(opts.PerPage))
+	annotation, err := f.getListFromAPI(ctx, queryUrl, &res, WithPage(opts.Page), WithPageLimit(opts.PerPage))
 	if err != nil {
 		return nil, "", nil, err
+	}
+
+	var nextPage string
+	paginationData := res.Metadata
+	if paginationData.Page*paginationData.PerPage < paginationData.Total {
+		nextPage = strconv.Itoa(paginationData.Page + 1)
 	}
 
 	return res.Response, nextPage, annotation, nil
@@ -168,10 +161,12 @@ func (f *FreshBooksClient) ListTeamMembers(ctx context.Context, opts PageOptions
 
 func (f *FreshBooksClient) RequestBusinessID(ctx context.Context) (int64, error) {
 	var response ResponseBID
-	var opts []ReqOpt
-	queryUrl := getBussinessID
+	queryUrl, err := url.JoinPath(baseURL, getBusinessID)
+	if err != nil {
+		return 0, err
+	}
 
-	_, _, err := f.doRequest(ctx, http.MethodGet, queryUrl, &response, nil, opts...)
+	_, err = f.doRequest(ctx, http.MethodGet, queryUrl, &response, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -190,7 +185,7 @@ func (f *FreshBooksClient) doRequest(
 	res interface{},
 	_ interface{},
 	reqOpts ...ReqOpt,
-) (http.Header, annotations.Annotations, error) {
+) (annotations.Annotations, error) {
 	var (
 		resp *http.Response
 		err  error
@@ -198,16 +193,16 @@ func (f *FreshBooksClient) doRequest(
 
 	urlAddress, err := url.Parse(endpointUrl)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	for _, o := range reqOpts {
 		o(urlAddress)
 	}
 
-	clientToken, err := f.GetToken()
+	clientToken, err := f.Token()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	req, err := f.client.NewRequest(
@@ -219,12 +214,12 @@ func (f *FreshBooksClient) doRequest(
 		uhttp.WithHeader("Authorization", "Bearer "+clientToken.AccessToken),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	resp, err = f.client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if resp != nil {
 		defer resp.Body.Close()
@@ -234,14 +229,14 @@ func (f *FreshBooksClient) doRequest(
 		bodyContent, err := io.ReadAll(resp.Body)
 
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		err = json.Unmarshal(bodyContent, &res)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	annotation := annotations.Annotations{}
-	return resp.Header, annotation, nil
+	return annotation, nil
 }

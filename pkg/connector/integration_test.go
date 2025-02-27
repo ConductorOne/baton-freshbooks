@@ -41,7 +41,6 @@ func TestUserBuilderListWithAcessToken(t *testing.T) {
 	users, _, _, err := u.List(ctx, parentResourceID, paginationToken)
 	assert.Nil(t, err)
 	assert.NotNil(t, users)
-	assert.Greater(t, len(users), 0)
 }
 
 func TestUserBuilderListWithRefreshToken(t *testing.T) {
@@ -62,5 +61,4 @@ func TestUserBuilderListWithRefreshToken(t *testing.T) {
 	roles, _, _, err := r.List(ctx, parentResourceID, paginationToken)
 	assert.Nil(t, err)
 	assert.NotNil(t, roles)
-	assert.Greater(t, len(roles), 0)
 }

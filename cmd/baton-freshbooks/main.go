@@ -25,7 +25,8 @@ func main() {
 		"baton-freshbooks",
 		getConnector,
 		field.Configuration{
-			Fields: ConfigurationFields,
+			Fields:      ConfigurationFields,
+			Constraints: FieldRelationships,
 		},
 	)
 	if err != nil {

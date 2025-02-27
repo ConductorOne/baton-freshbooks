@@ -37,18 +37,17 @@ func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		Page:    pageToken,
 		PerPage: pToken.Size,
 	})
-
 	if err != nil {
 		return nil, "", nil, err
 	}
+
 	err = bag.Next(nextPageToken)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
 	for _, teamMember := range teamMembers {
-		teamMemberCopy := teamMember
-		userResource, err := parseIntoUserResource(&teamMemberCopy, parentResourceID)
+		userResource, err := parseIntoUserResource(teamMember, parentResourceID)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -80,8 +79,8 @@ func newUserBuilder(client *client.FreshBooksClient) *userBuilder {
 	}
 }
 
-// parseIntoUserResource - This function parses a TeamMember (users from FreshBooks) into a User Resource.
-func parseIntoUserResource(teamMember *client.TeamMember, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+// parseIntoUserResource parses a TeamMember (users from FreshBooks) into a User Resource.
+func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	var userStatus = v2.UserTrait_Status_STATUS_ENABLED
 
 	profile := map[string]interface{}{

@@ -15,8 +15,8 @@ const (
 var (
 	TokenField        = field.StringField(token, field.WithRequired(false), field.WithDescription("Token to request data from the FreshBooks APIs"))
 	RefreshTokenField = field.StringField(refreshToken, field.WithRequired(false), field.WithDescription("Refresh token used to get a new access token from FreshBooks"))
-	ClientIDField     = field.StringField(fbClientID, field.WithRequired(false), field.WithDescription("Refresh token used to get a new access token from FreshBooks"))
-	ClientSecretField = field.StringField(fbClientSecret, field.WithRequired(false), field.WithDescription("Refresh token used to get a new access token from FreshBooks"))
+	ClientIDField     = field.StringField(fbClientID, field.WithRequired(false), field.WithDescription("Client ID from the Freshbooks app"))
+	ClientSecretField = field.StringField(fbClientSecret, field.WithRequired(false), field.WithDescription("Client Secret from the Freshbooks app"))
 
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
@@ -29,16 +29,14 @@ var (
 	// marked as mutually exclusive from the username password pair.
 	FieldRelationships = []field.SchemaFieldRelationship{
 		field.FieldsAtLeastOneUsed(TokenField, RefreshTokenField),
-		field.FieldsRequiredTogether(ClientIDField, ClientSecretField),
+		field.FieldsRequiredTogether(RefreshTokenField, ClientIDField, ClientSecretField),
 	}
-
-	// ConfigurationSchema = field.NewConfiguration(ConfigurationFields, FieldRelationships...)
 )
 
 // ValidateConfig is run after the configuration is loaded, and should return an
 // error if it isn't valid. Implementing this function is optional, it only
 // needs to perform extra validations that cannot be encoded with configuration
 // parameters.
-func ValidateConfig(v *viper.Viper) error {
+func ValidateConfig(_ *viper.Viper) error {
 	return nil
 }
