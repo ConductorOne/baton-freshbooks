@@ -2,9 +2,18 @@
 
 # `baton-freshbooks` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-freshbooks.svg)](https://pkg.go.dev/github.com/conductorone/baton-freshbooks) ![main ci](https://github.com/conductorone/baton-freshbooks/actions/workflows/main.yaml/badge.svg)
 
-`baton-freshbooks` is a connector for built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
+`baton-freshbooks` is a connector for [FreshBooks](https://www.freshbooks.com/) built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
+This connector allows you to interact with the platform and to view the list of users and the permissions that each one has. However, the modification of the permits isn't available, since the platform does not allow modifications of this type to be made from the API.
+FreshBooks uses OAuth 2.0 with the Authorization Code grant type.
 
 Check out [Baton](https://github.com/conductorone/baton) to learn more the project in general.
+
+You can run this connector in two different modes:
+1. Run it with an Access Token using the argument `--token`
+or
+2. Run it with a Refresh Token, Client ID and Client Secret of the Freshbooks account. Arguments: `--refresh-token`, `--fb-client-id` and `--fb-client-secret`
+
+This second mode was added in case this connector recieves the adjustments needed to run as a service.
 
 # Getting Started
 
@@ -38,6 +47,7 @@ baton resources
 
 `baton-freshbooks` will pull down information about the following resources:
 - Users
+- Roles
 
 # Contributing, Support and Issues
 
@@ -72,6 +82,11 @@ Flags:
   -p, --provisioning                 If this connector supports provisioning, this must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
       --ticketing                    This must be set to enable ticketing support ($BATON_TICKETING)
   -v, --version                      version for baton-freshbooks
+
+      --token string                 Access Token to connect to the platform. Basic functioning mode
+      --refresh-token string         The Refresh Token that should be used to request a new Access Token when expired
+      --fb-client-id string          The client ID used to authenticate with FreshBooks
+      --fb-client-secret string      The client secret used to authenticate with FreshBooks
 
 Use "baton-freshbooks [command] --help" for more information about a command.
 ```
