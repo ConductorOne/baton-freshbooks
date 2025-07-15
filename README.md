@@ -73,20 +73,20 @@ Available Commands:
   help               Help about any command
 
 Flags:
-      --client-id string             The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
-      --client-secret string         The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
-  -f, --file string                  The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
-  -h, --help                         help for baton-freshbooks
-      --log-format string            The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
-      --log-level string             The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
-  -p, --provisioning                 If this connector supports provisioning, this must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
-      --ticketing                    This must be set to enable ticketing support ($BATON_TICKETING)
-  -v, --version                      version for baton-freshbooks
-
-      --token string                 Access Token to connect to the platform. Basic functioning mode
-      --refresh-token string         The Refresh Token that should be used to request a new Access Token when expired
-      --fb-client-id string          The client ID used to authenticate with FreshBooks
-      --fb-client-secret string      The client secret used to authenticate with FreshBooks
+      --client-id string          The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
+      --client-secret string      The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
+      --fb-client-id string       Client ID from the Freshbooks app ($BATON_FB_CLIENT_ID)
+      --fb-client-secret string   Client Secret from the Freshbooks app ($BATON_FB_CLIENT_SECRET)
+  -f, --file string               The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
+  -h, --help                      help for baton-freshbooks
+      --log-format string         The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
+      --log-level string          The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
+  -p, --provisioning              This must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
+      --refresh-token string      Refresh token used to get a new access token from FreshBooks ($BATON_REFRESH_TOKEN)
+      --skip-full-sync            This must be set to skip a full sync ($BATON_SKIP_FULL_SYNC)
+      --ticketing                 This must be set to enable ticketing support ($BATON_TICKETING)
+      --token string              Token to request data from the FreshBooks APIs ($BATON_TOKEN)
+  -v, --version                   version for baton-freshbooks
 
 Use "baton-freshbooks [command] --help" for more information about a command.
 ```
