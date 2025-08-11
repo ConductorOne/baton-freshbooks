@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	cfg "github.com/conductorone/baton-freshbooks/pkg/config"
 	"github.com/conductorone/baton-freshbooks/pkg/connector"
 	"github.com/conductorone/baton-sdk/pkg/config"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/field"
 	"github.com/conductorone/baton-sdk/pkg/types"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -22,18 +22,14 @@ func main() {
 
 	_, cmd, err := config.DefineConfiguration(
 		ctx,
-		"baton-freshbooks",
+		"baton-github",
 		getConnector,
-		field.Configuration{
-			Fields:      ConfigurationFields,
-			Constraints: FieldRelationships,
-		},
+		cfg.Config,
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-
 	cmd.Version = version
 
 	err = cmd.Execute()
@@ -43,19 +39,18 @@ func main() {
 	}
 }
 
-func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
-	// Get arguments from Viper
-	argAccessToken := v.GetString(token)
-	argRefreshToken := v.GetString(refreshToken)
-	argClientID := v.GetString(fbClientID)
-	argClientSecret := v.GetString(fbClientSecret)
+func getConnector(ctx context.Context, fbc *cfg.Freshbooks) (types.ConnectorServer, error) {
+	err := field.Validate(cfg.Config, fbc)
+	if err != nil {
+		return nil, err
+	}
 
 	var connectorOpts []connector.Option
 
-	if argAccessToken != "" {
-		connectorOpts = append(connectorOpts, connector.WithAccessToken(ctx, argAccessToken))
-	} else if argRefreshToken != "" && argClientID != "" && argClientSecret != "" {
-		connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, argRefreshToken, argClientID, argClientSecret))
+	if fbc.AccessToken != "" {
+		connectorOpts = append(connectorOpts, connector.WithAccessToken(ctx, fbc.AccessToken))
+	} else if fbc.RefreshToken != "" && fbc.FreshbooksClientId != "" && fbc.FreshbooksClientSecret != "" {
+		connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, fbc.RefreshToken, fbc.FreshbooksClientId, fbc.FreshbooksClientSecret))
 	}
 
 	if len(connectorOpts) == 0 {
@@ -63,10 +58,6 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 	}
 
 	l := ctxzap.Extract(ctx)
-
-	if err := ValidateConfig(v); err != nil {
-		return nil, err
-	}
 
 	cb, err := connector.New(ctx, connectorOpts...)
 	if err != nil {
