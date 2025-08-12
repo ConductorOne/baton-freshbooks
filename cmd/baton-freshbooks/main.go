@@ -22,7 +22,7 @@ func main() {
 
 	_, cmd, err := config.DefineConfiguration(
 		ctx,
-		"baton-github",
+		"baton-freshbooks",
 		getConnector,
 		cfg.Config,
 	)
