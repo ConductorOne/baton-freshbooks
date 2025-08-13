@@ -8,6 +8,8 @@ import (
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	cfg "github.com/conductorone/baton-freshbooks/pkg/config"
 
+	"golang.org/x/oauth2"
+
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/cli"
@@ -56,6 +58,18 @@ func WithAccessToken(ctx context.Context, accessToken, baseURL string) Option {
 		fbc, err := client.New(ctx, clientOpts...)
 		if err != nil {
 			return fmt.Errorf("error applying option WithAccessToken: %w", err)
+		}
+
+		c.client = fbc
+		return nil
+	}
+}
+
+func WithTokenSource(ctx context.Context, tokenSource oauth2.TokenSource) Option {
+	return func(c *Connector) error {
+		fbc, err := client.New(ctx, client.WithTokenSource(tokenSource))
+		if err != nil {
+			return fmt.Errorf("error applying option WithTokenSource: %w", err)
 		}
 
 		c.client = fbc
