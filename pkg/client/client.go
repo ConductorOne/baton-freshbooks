@@ -45,6 +45,12 @@ func WithBearerToken(apiToken string) Option {
 	}
 }
 
+func WithTokenSource(tokenSource oauth2.TokenSource) Option {
+	return func(client *FreshBooksClient) {
+		client.TokenSource = tokenSource
+	}
+}
+
 // WithRefreshToken it receives a Refresh Token, Client ID and Client Secret from the platform to be able to renew the token when expired.
 // The 3 arguments should be received when the connector is executed.
 func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) Option {
