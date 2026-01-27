@@ -10,7 +10,7 @@ type Freshbooks struct {
 	FreshbooksClientSecret string `mapstructure:"freshbooks-client-secret"`
 }
 
-func (c* Freshbooks) findFieldByTag(tagValue string) (any, bool) {
+func (c *Freshbooks) findFieldByTag(tagValue string) (any, bool) {
 	v := reflect.ValueOf(c).Elem() // Dereference pointer to struct
 	t := v.Type()
 
@@ -42,11 +42,13 @@ func (c *Freshbooks) GetString(fieldName string) string {
 	if !ok {
 		return ""
 	}
-	t, ok := v.(string)
-	if !ok {
-		panic("wrong type")
+	if t, ok := v.(string); ok {
+		return t
 	}
-	return t
+	if t, ok := v.([]byte); ok {
+		return string(t)
+	}
+	panic("wrong type")
 }
 
 func (c *Freshbooks) GetInt(fieldName string) int {

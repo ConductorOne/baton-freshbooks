@@ -6,6 +6,7 @@ import (
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 )
+
+var _ connectorbuilder.ResourceSyncer = (*roleBuilder)(nil)
 
 const permissionName = "assigned"
 
