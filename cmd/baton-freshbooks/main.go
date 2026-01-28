@@ -26,7 +26,7 @@ func main() {
 		"baton-freshbooks",
 		getConnector,
 		cfg.Config,
-		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connector.Connector{}),
+		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connector.Freshbooks{}),
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
