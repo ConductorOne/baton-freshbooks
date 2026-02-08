@@ -10,6 +10,7 @@ const (
 	refreshToken   = "refresh-token"
 	fbClientID     = "freshbooks-client-id"
 	fbClientSecret = "freshbooks-client-secret"
+	baseURL        = "base-url"
 )
 
 var (
@@ -33,7 +34,11 @@ var (
 		field.WithDisplayName("Client Secret"),
 		field.WithDescription("Client Secret from the Freshbooks app"))
 
-	configFields = []field.SchemaField{TokenField, RefreshTokenField, ClientIDField, ClientSecretField}
+	BaseURLField = field.StringField(
+		baseURL,
+		field.WithDescription("Override the FreshBooks API URL (for testing)"))
+
+	configFields = []field.SchemaField{TokenField, RefreshTokenField, ClientIDField, ClientSecretField, BaseURLField}
 
 	fieldRelationships = []field.SchemaFieldRelationship{
 		field.FieldsAtLeastOneUsed(TokenField, RefreshTokenField),

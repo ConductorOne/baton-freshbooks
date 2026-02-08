@@ -48,9 +48,9 @@ func getConnector(ctx context.Context, fbc *cfg.Freshbooks) (types.ConnectorServ
 	var connectorOpts []connector.Option
 
 	if fbc.AccessToken != "" {
-		connectorOpts = append(connectorOpts, connector.WithAccessToken(ctx, fbc.AccessToken))
+		connectorOpts = append(connectorOpts, connector.WithAccessToken(ctx, fbc.AccessToken, fbc.BaseUrl))
 	} else if fbc.RefreshToken != "" && fbc.FreshbooksClientId != "" && fbc.FreshbooksClientSecret != "" {
-		connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, fbc.RefreshToken, fbc.FreshbooksClientId, fbc.FreshbooksClientSecret))
+		connectorOpts = append(connectorOpts, connector.WithRefreshToken(ctx, fbc.RefreshToken, fbc.FreshbooksClientId, fbc.FreshbooksClientSecret, fbc.BaseUrl))
 	}
 
 	if len(connectorOpts) == 0 {

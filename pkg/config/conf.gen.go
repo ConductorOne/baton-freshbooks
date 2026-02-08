@@ -8,6 +8,7 @@ type Freshbooks struct {
 	RefreshToken string `mapstructure:"refresh-token"`
 	FreshbooksClientId string `mapstructure:"freshbooks-client-id"`
 	FreshbooksClientSecret string `mapstructure:"freshbooks-client-secret"`
+	BaseUrl string `mapstructure:"base-url"`
 }
 
 func (c* Freshbooks) findFieldByTag(tagValue string) (any, bool) {
