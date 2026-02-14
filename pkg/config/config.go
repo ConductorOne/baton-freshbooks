@@ -36,7 +36,8 @@ var (
 
 	BaseURLField = field.StringField(
 		baseURL,
-		field.WithDescription("Override the FreshBooks API URL (for testing)"))
+		field.WithDescription("Override the FreshBooks API URL (for testing)"),
+		field.WithHidden(true))
 
 	configFields = []field.SchemaField{TokenField, RefreshTokenField, ClientIDField, ClientSecretField, BaseURLField}
 
