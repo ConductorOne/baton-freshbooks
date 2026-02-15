@@ -28,12 +28,11 @@ func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.Resour
 
 func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret, baseURL string) Option {
 	return func(c *Connector) error {
-		clientOpts := []client.Option{
-			client.WithRefreshToken(ctx, refreshToken, clientID, clientSecret),
-		}
+		var clientOpts []client.Option
 		if baseURL != "" {
 			clientOpts = append(clientOpts, client.WithBaseURL(baseURL))
 		}
+		clientOpts = append(clientOpts, client.WithRefreshToken(ctx, refreshToken, clientID, clientSecret))
 		fbc, err := client.New(ctx, clientOpts...)
 		if err != nil {
 			return fmt.Errorf("error applying option WithRefreshToken: %w", err)
