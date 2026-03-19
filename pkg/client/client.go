@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,7 +67,7 @@ func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret 
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			Endpoint: oauth2.Endpoint{
-				TokenURL: client.baseURL + getNewToken,
+				TokenURL: strings.TrimRight(client.baseURL, "/") + getNewToken,
 			},
 		}
 		tokenSource := oauth2.ReuseTokenSource(token, config.TokenSource(ctx, token))
