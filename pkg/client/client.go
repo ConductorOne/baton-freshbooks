@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	DefaultBaseURL  = "https://api.freshbooks.com/auth"
-	getNewToken     = "/oauth/token" // #nosec G101
-	getBusinessID   = "/api/v1/users/me"
+	DefaultBaseURL = "https://api.freshbooks.com/auth"
+	getNewToken    = "/oauth/token" // #nosec G101
+	getBusinessID  = "/api/v1/users/me"
 
 	businessBaseURL = "/api/v1/businesses/"
 	getTeamMembers  = "/team_members"
