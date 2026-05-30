@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,9 +19,9 @@ import (
 )
 
 const (
-	baseURL       = "https://api.freshbooks.com/auth"
-	getNewToken   = "/oauth/token" // #nosec G101
-	getBusinessID = "/api/v1/users/me"
+	DefaultBaseURL = "https://api.freshbooks.com/auth"
+	getNewToken    = "/oauth/token" // #nosec G101
+	getBusinessID  = "/api/v1/users/me"
 
 	businessBaseURL = "/api/v1/businesses/"
 	getTeamMembers  = "/team_members"
@@ -30,6 +31,7 @@ type FreshBooksClient struct {
 	client      *uhttp.BaseHttpClient
 	TokenSource oauth2.TokenSource
 	Config      Config
+	baseURL     string
 }
 
 type Config struct {
@@ -42,6 +44,12 @@ type Option func(client *FreshBooksClient)
 func WithBearerToken(apiToken string) Option {
 	return func(client *FreshBooksClient) {
 		client.SetToken(apiToken)
+	}
+}
+
+func WithBaseURL(baseURL string) Option {
+	return func(client *FreshBooksClient) {
+		client.baseURL = baseURL
 	}
 }
 
@@ -59,7 +67,7 @@ func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret 
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			Endpoint: oauth2.Endpoint{
-				TokenURL: baseURL + getNewToken,
+				TokenURL: strings.TrimRight(client.baseURL, "/") + getNewToken,
 			},
 		}
 		tokenSource := oauth2.ReuseTokenSource(token, config.TokenSource(ctx, token))
@@ -111,7 +119,8 @@ func New(ctx context.Context, opts ...Option) (*FreshBooksClient, error) {
 	}
 
 	fbClient := FreshBooksClient{
-		client: cli,
+		client:  cli,
+		baseURL: DefaultBaseURL,
 	}
 
 	for _, o := range opts {
@@ -139,7 +148,7 @@ func (f *FreshBooksClient) getListFromAPI(
 
 // ListTeamMembers Gets all the Team Members from FreshBooks and deserialized them into an Array.
 func (f *FreshBooksClient) ListTeamMembers(ctx context.Context, opts PageOptions) ([]TeamMember, string, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(baseURL, businessBaseURL, f.BusinessID(), getTeamMembers)
+	queryUrl, err := url.JoinPath(f.baseURL, businessBaseURL, f.BusinessID(), getTeamMembers)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -161,7 +170,7 @@ func (f *FreshBooksClient) ListTeamMembers(ctx context.Context, opts PageOptions
 
 func (f *FreshBooksClient) RequestBusinessID(ctx context.Context) (int64, error) {
 	var response ResponseBID
-	queryUrl, err := url.JoinPath(baseURL, getBusinessID)
+	queryUrl, err := url.JoinPath(f.baseURL, getBusinessID)
 	if err != nil {
 		return 0, err
 	}

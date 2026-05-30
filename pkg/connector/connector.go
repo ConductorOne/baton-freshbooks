@@ -26,11 +26,13 @@ func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.Resour
 	}
 }
 
-func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) Option {
+func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret, baseURL string) Option {
 	return func(c *Connector) error {
-		clientOpts := []client.Option{
-			client.WithRefreshToken(ctx, refreshToken, clientID, clientSecret),
+		var clientOpts []client.Option
+		if baseURL != "" {
+			clientOpts = append(clientOpts, client.WithBaseURL(baseURL))
 		}
+		clientOpts = append(clientOpts, client.WithRefreshToken(ctx, refreshToken, clientID, clientSecret))
 		fbc, err := client.New(ctx, clientOpts...)
 		if err != nil {
 			return fmt.Errorf("error applying option WithRefreshToken: %w", err)
@@ -41,9 +43,15 @@ func WithRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret 
 	}
 }
 
-func WithAccessToken(ctx context.Context, accessToken string) Option {
+func WithAccessToken(ctx context.Context, accessToken, baseURL string) Option {
 	return func(c *Connector) error {
-		fbc, err := client.New(ctx, client.WithBearerToken(accessToken))
+		clientOpts := []client.Option{
+			client.WithBearerToken(accessToken),
+		}
+		if baseURL != "" {
+			clientOpts = append(clientOpts, client.WithBaseURL(baseURL))
+		}
+		fbc, err := client.New(ctx, clientOpts...)
 		if err != nil {
 			return fmt.Errorf("error applying option WithAccessToken: %w", err)
 		}
