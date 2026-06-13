@@ -18,11 +18,12 @@ var (
 		token, field.WithRequired(false),
 		field.WithDisplayName("Access Token"),
 		field.WithDescription("Token to request data from the FreshBooks APIs"),
+		field.WithIsSecret(true),
 	)
 	RefreshTokenField = field.StringField(
 		refreshToken, field.WithRequired(false),
 		field.WithDisplayName("Refresh Token"),
-		field.WithDescription("Refresh token used to get a new access token from FreshBooks"))
+		field.WithDescription("Refresh token used to get a new access token from FreshBooks"), field.WithIsSecret(true))
 
 	ClientIDField = field.StringField(
 		fbClientID, field.WithRequired(false),
@@ -32,7 +33,7 @@ var (
 	ClientSecretField = field.StringField(
 		fbClientSecret, field.WithRequired(false),
 		field.WithDisplayName("Client Secret"),
-		field.WithDescription("Client Secret from the Freshbooks app"))
+		field.WithDescription("Client Secret from the Freshbooks app"), field.WithIsSecret(true))
 
 	BaseURLField = field.StringField(
 		baseURL,
