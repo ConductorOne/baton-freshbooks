@@ -1,3 +1,5 @@
+//go:build integration
+
 package connector
 
 import (
@@ -25,7 +27,7 @@ var (
 
 func TestUserBuilderListWithAcessToken(t *testing.T) {
 	if accessToken == "" {
-		t.Fatal("param token missing")
+		t.Skip("FRESHBOOKS_ACCESS_TOKEN not set, skipping integration test")
 	}
 
 	c, err := client.New(
@@ -45,7 +47,7 @@ func TestUserBuilderListWithAcessToken(t *testing.T) {
 
 func TestUserBuilderListWithRefreshToken(t *testing.T) {
 	if refreshToken == "" && clientID == "" && clientSecret == "" {
-		t.Fatal("the params refresh-token, fb-client-id and fb-client-secret must be used")
+		t.Skip("FRESHBOOKS_REFRESH_TOKEN, FRESHBOOKS_CLIENT_ID, FRESHBOOKS_CLIENT_SECRET not set, skipping integration test")
 	}
 
 	c, err := client.New(
