@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
-	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
@@ -28,7 +27,7 @@ func (r *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 }
 
 // List retrieves a hardcoded list of available Roles, since they are fixed (not modifications neither creation allowed by the platform) and cannot be requested to the API.
-func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
 	availableRoles := []client.Role{
 		{RoleName: "admin", BusinessRoleName: "owner"},                 // Admin Role.
 		{RoleName: "manager", BusinessRoleName: "business_manager"},    // Manager Role.
@@ -41,16 +40,16 @@ func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.To
 	for _, role := range availableRoles {
 		roleResource, err := parseIntoRoleResource(role, nil)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		ret = append(ret, roleResource)
 	}
 
-	return ret, "", nil, nil
+	return ret, nil, nil
 }
 
-func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
 	var ret []*v2.Entitlement
 
 	assigmentOptions := []entitlement.EntitlementOption{
@@ -60,22 +59,22 @@ func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 	}
 	ret = append(ret, entitlement.NewPermissionEntitlement(resource, permissionName, assigmentOptions...))
 
-	return ret, "", nil, nil
+	return ret, nil, nil
 }
 
-func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
 	var ret []*v2.Grant
 
 	teamMembers, err := r.GetAllTeamMembers(ctx)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	for _, teamMember := range teamMembers {
 		if teamMember.BusinessRoleName == resource.Id.Resource {
 			userResource, err := parseIntoUserResource(teamMember, nil)
 			if err != nil {
-				return nil, "", nil, err
+				return nil, nil, err
 			}
 
 			membershipGrant := grant.NewGrant(resource, permissionName, userResource.Id)
@@ -83,7 +82,7 @@ func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 		}
 	}
 
-	return ret, "", nil, nil
+	return ret, nil, nil
 }
 
 func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMember, error) {

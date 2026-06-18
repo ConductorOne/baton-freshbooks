@@ -6,9 +6,11 @@ import (
 	"io"
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
+	cfg "github.com/conductorone/baton-freshbooks/pkg/config"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/cli"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
@@ -18,9 +20,9 @@ type Connector struct {
 
 type Option func(*Connector) error
 
-// ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+// ResourceSyncers returns a ResourceSyncerV2 for each resource type that should be synced from the upstream service.
+func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncerV2 {
+	return []connectorbuilder.ResourceSyncerV2{
 		newUserBuilder(d.client),
 		newRoleBuilder(d.client),
 	}
@@ -92,4 +94,25 @@ func New(_ context.Context, opts ...Option) (*Connector, error) {
 	}
 
 	return connector, nil
+}
+
+// NewLambdaConnector is the entry point used by config.RunConnector.
+func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
+	var connectorOpts []Option
+
+	if fbc.AccessToken != "" {
+		connectorOpts = append(connectorOpts, WithAccessToken(ctx, fbc.AccessToken, fbc.BaseUrl))
+	} else if fbc.RefreshToken != "" && fbc.FreshbooksClientId != "" && fbc.FreshbooksClientSecret != "" {
+		connectorOpts = append(connectorOpts, WithRefreshToken(ctx, fbc.RefreshToken, fbc.FreshbooksClientId, fbc.FreshbooksClientSecret, fbc.BaseUrl))
+	}
+
+	if len(connectorOpts) == 0 {
+		return nil, nil, fmt.Errorf("[token] or [refresh-token, fb-client-id, fb-client-secret] argumetns must provided")
+	}
+
+	c, err := New(ctx, connectorOpts...)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, nil, nil
 }

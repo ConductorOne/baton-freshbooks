@@ -5,8 +5,6 @@ import (
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
-	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
@@ -21,55 +19,60 @@ func (u *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 
 // List returns all the users from the database as resource objects.
 // Users include a UserTrait because they are the 'shape' of a standard user.
-func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, opts rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
 	var rv []*v2.Resource
 	err := u.client.EnsureBusinessID(ctx)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
+
+	pToken := &opts.PageToken
 
 	bag, pageToken, err := getToken(pToken, userResourceType)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
-	teamMembers, nextPageToken, annotation, err := u.client.ListTeamMembers(ctx, client.PageOptions{
+	teamMembers, nextPageToken, _, err := u.client.ListTeamMembers(ctx, client.PageOptions{
 		Page:    pageToken,
 		PerPage: pToken.Size,
 	})
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	err = bag.Next(nextPageToken)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	for _, teamMember := range teamMembers {
 		userResource, err := parseIntoUserResource(teamMember, parentResourceID)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 		rv = append(rv, userResource)
 	}
 
-	nextPageToken, err = bag.Marshal()
+	nextPageTokenStr, err := bag.Marshal()
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
-	return rv, nextPageToken, annotation, nil
+	if nextPageTokenStr == "" {
+		return rv, nil, nil
+	}
+	return rv, &rs.SyncOpResults{NextPageToken: nextPageTokenStr}, nil
 }
 
 // Entitlements always returns an empty slice for users.
-func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
-func (u *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (u *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 func newUserBuilder(client *client.FreshBooksClient) *userBuilder {

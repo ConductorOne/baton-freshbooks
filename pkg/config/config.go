@@ -55,6 +55,6 @@ func ValidateConfig(_ *viper.Viper) error {
 //go:generate go run ./gen
 var Config = field.NewConfiguration(configFields,
 	field.WithConstraints(fieldRelationships...),
-	field.WithConnectorDisplayName("Freshbooks v2"),
+	field.WithConnectorDisplayName("FreshBooks"),
 	field.WithHelpUrl("/docs/baton/freshbooks"),
 	field.WithIconUrl("/static/app-icons/freshbooks.svg"))
