@@ -10,6 +10,7 @@ import (
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/pagination"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +23,7 @@ var (
 	clientID, _      = os.LookupEnv("FRESHBOOKS_CLIENT_ID")
 	clientSecret, _  = os.LookupEnv("FRESHBOOKS_CLIENT_SECRET")
 	parentResourceID = &v2.ResourceId{}
-	syncOpAttrs      = rs.SyncOpAttrs{}
+	syncOpAttrs      = rs.SyncOpAttrs{PageToken: pagination.Token{Size: 50}}
 )
 
 func TestUserBuilderListWithAcessToken(t *testing.T) {
