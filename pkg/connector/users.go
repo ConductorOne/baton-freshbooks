@@ -33,7 +33,7 @@ func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, nil, err
 	}
 
-	teamMembers, nextPageToken, _, err := u.client.ListTeamMembers(ctx, client.PageOptions{
+	teamMembers, nextPageToken, annos, err := u.client.ListTeamMembers(ctx, client.PageOptions{
 		Page:    pageToken,
 		PerPage: pToken.Size,
 	})
@@ -60,9 +60,9 @@ func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 	}
 
 	if nextPageTokenStr == "" {
-		return rv, nil, nil
+		return rv, &rs.SyncOpResults{Annotations: annos}, nil
 	}
-	return rv, &rs.SyncOpResults{NextPageToken: nextPageTokenStr}, nil
+	return rv, &rs.SyncOpResults{NextPageToken: nextPageTokenStr, Annotations: annos}, nil
 }
 
 // Entitlements always returns an empty slice for users.
