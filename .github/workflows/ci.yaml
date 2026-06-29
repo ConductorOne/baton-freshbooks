@@ -5,6 +5,21 @@ on:
     branches:
       - main
 jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --timeout=3m
+
   go-test:
     strategy:
       matrix:
@@ -24,10 +39,52 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: go build
+        run: go build ./...
+      - name: go vet
+        run: go vet ./...
+      # The connector's own tests are integration tests behind the `integration`
+      # build tag; they run against the real API and skip when no credentials are
+      # set. Build with the tag so the test file always stays compilable.
       - name: go tests
-        run: (set -o pipefail && go test -v -covermode=count -json ./... | tee test.json)
+        run: (set -o pipefail && go test -tags integration -v -covermode=count -json ./... | tee test.json)
       - name: annotate go tests
         if: always()
         uses: guyarb/golang-test-annotations@v0.5.1
         with:
           test-results: test.json
+
+  # Credential-free end-to-end validation: sync against the in-memory test
+  # server and assert the connector produces the expected resources and grants.
+  test-server-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build connector and test server
+        run: |
+          go build -o baton-freshbooks ./cmd/baton-freshbooks
+          go build -o test-server ./cmd/test-server
+      - name: Install baton
+        run: go install github.com/conductorone/baton/cmd/baton@main
+      - name: Start test server
+        run: ./test-server &
+      - name: Wait for test server
+        run: sleep 2
+      - name: Sync against test server
+        run: ./baton-freshbooks --access-token test-access-token --base-url http://localhost:8765 --file sync.c1z
+      - name: Validate resources and grants
+        run: |
+          set -euo pipefail
+          users=$(baton resources --file sync.c1z --output-format json | jq '[.resources[] | select(.resource.id.resourceType=="user")] | length')
+          roles=$(baton resources --file sync.c1z --output-format json | jq '[.resources[] | select(.resource.id.resourceType=="role")] | length')
+          grants=$(baton grants --file sync.c1z --output-format json | jq '.grants | length')
+          echo "users=$users roles=$roles grants=$grants"
+          if [ "$users" != "55" ] || [ "$roles" != "5" ] || [ "$grants" != "53" ]; then
+            echo "::error::unexpected counts (expected users=55 roles=5 grants=53)"
+            exit 1
+          fi
