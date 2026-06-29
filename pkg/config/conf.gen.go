@@ -6,6 +6,7 @@ import "reflect"
 type Freshbooks struct {
 	AccessToken string `mapstructure:"access-token"`
 	RefreshToken string `mapstructure:"refresh-token"`
+	Oauth2 string `mapstructure:"oauth2"`
 	FreshbooksClientId string `mapstructure:"freshbooks-client-id"`
 	FreshbooksClientSecret string `mapstructure:"freshbooks-client-secret"`
 	BaseUrl string `mapstructure:"base-url"`

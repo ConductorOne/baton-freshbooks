@@ -114,9 +114,16 @@ func New(_ context.Context, opts ...Option) (*Connector, error) {
 func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
 	var connectorOpts []Option
 
-	if fbc.AccessToken != "" {
+	tokenSource := cliOpts.TokenSource
+
+	switch {
+	case tokenSource != nil:
+		// Running under C1 with the OAuth2 field configured: the SDK supplies a
+		// managed token source that handles refresh.
+		connectorOpts = append(connectorOpts, WithTokenSource(ctx, tokenSource))
+	case fbc.AccessToken != "":
 		connectorOpts = append(connectorOpts, WithAccessToken(ctx, fbc.AccessToken, fbc.BaseUrl))
-	} else if fbc.RefreshToken != "" && fbc.FreshbooksClientId != "" && fbc.FreshbooksClientSecret != "" {
+	case fbc.RefreshToken != "" && fbc.FreshbooksClientId != "" && fbc.FreshbooksClientSecret != "":
 		connectorOpts = append(connectorOpts, WithRefreshToken(ctx, fbc.RefreshToken, fbc.FreshbooksClientId, fbc.FreshbooksClientSecret, fbc.BaseUrl))
 	}
 
