@@ -71,7 +71,6 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 	return nil, nil, nil
 }
 
-// Grants always returns an empty slice for users since they don't have any entitlements.
 // Grants emits the user's role assignment. The role is read from the
 // business_role_name stored on the user's profile during List, so no
 // additional API call (nor a cached team-member list) is needed here.

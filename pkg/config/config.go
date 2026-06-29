@@ -61,6 +61,13 @@ var (
 		field.WithHidden(true))
 
 	configFields = []field.SchemaField{TokenField, RefreshTokenField, OAuth2Field, ClientIDField, ClientSecretField, BaseURLField}
+
+	// Refresh-token auth needs all three values together. We no longer require
+	// "at least one" credential field, since OAuth2 is now a valid alternative
+	// source handled via the SDK-provided token source.
+	fieldRelationships = []field.SchemaFieldRelationship{
+		field.FieldsRequiredTogether(RefreshTokenField, ClientIDField, ClientSecretField),
+	}
 )
 
 func ValidateConfig(_ *viper.Viper) error {
@@ -69,6 +76,7 @@ func ValidateConfig(_ *viper.Viper) error {
 
 //go:generate go run ./gen
 var Config = field.NewConfiguration(configFields,
+	field.WithConstraints(fieldRelationships...),
 	field.WithConnectorDisplayName("FreshBooks"),
 	field.WithHelpUrl("/docs/baton/freshbooks"),
 	field.WithIconUrl("/static/app-icons/freshbooks.svg"))
