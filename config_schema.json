@@ -93,21 +93,11 @@
       }
     },
     {
-      "name": "access-token",
-      "displayName": "Access Token",
-      "description": "Token to request data from the FreshBooks APIs",
-      "isSecret": true,
+      "name": "oauth2",
+      "displayName": "OAuth2",
+      "description": "OAuth configuration for FreshBooks",
       "stringField": {
-        "rules": {}
-      }
-    },
-    {
-      "name": "refresh-token",
-      "displayName": "Refresh Token",
-      "description": "Refresh token used to get a new access token from FreshBooks",
-      "isSecret": true,
-      "stringField": {
-        "rules": {}
+        "type": "STRING_FIELD_TYPE_OAUTH2"
       }
     },
     {
@@ -126,28 +116,6 @@
       "stringField": {
         "rules": {}
       }
-    },
-    {
-      "name": "base-url",
-      "description": "Override the FreshBooks API URL (for testing)",
-      "stringField": {}
-    }
-  ],
-  "constraints": [
-    {
-      "kind": "CONSTRAINT_KIND_AT_LEAST_ONE",
-      "fieldNames": [
-        "access-token",
-        "refresh-token"
-      ]
-    },
-    {
-      "kind": "CONSTRAINT_KIND_REQUIRED_TOGETHER",
-      "fieldNames": [
-        "refresh-token",
-        "freshbooks-client-id",
-        "freshbooks-client-secret"
-      ]
     }
   ],
   "displayName": "FreshBooks",
