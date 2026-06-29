@@ -77,6 +77,7 @@ func (s *server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 // handleToken implements the OAuth2 refresh_token grant. It rejects the same
 // inputs the real token endpoint rejects (RFC 6749).
 func (s *server) handleToken(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // cap token request body at 1 MiB
 	if err := r.ParseForm(); err != nil {
 		writeOAuthError(w, http.StatusBadRequest, "invalid_request", "could not parse form body")
 		return
