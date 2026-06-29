@@ -25,12 +25,6 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
-    env:
-      FRESHBOOKS_ACCESS_TOKEN: ${{ secrets.FRESHBOOKS_ACCESS_TOKEN }}
-      FRESHBOOKS_REFRESH_TOKEN: ${{ secrets.FRESHBOOKS_REFRESH_TOKEN }}
-      FRESHBOOKS_CLIENT_ID: ${{ secrets.FRESHBOOKS_CLIENT_ID }}
-      FRESHBOOKS_CLIENT_SECRET: ${{ secrets.FRESHBOOKS_CLIENT_SECRET }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,10 +38,13 @@ jobs:
       - name: go vet
         run: go vet ./...
       # The connector's own tests are integration tests behind the `integration`
-      # build tag; they run against the real API and skip when no credentials are
-      # set. Build with the tag so the test file always stays compilable.
+      # build tag and require live FreshBooks credentials, so they are not run
+      # here (the test-server-sync job provides credential-free validation).
+      # Vet with the tag so the integration file always stays compilable.
+      - name: vet integration tests (compile only)
+        run: go vet -tags integration ./...
       - name: go tests
-        run: (set -o pipefail && go test -tags integration -v -covermode=count -json ./... | tee test.json)
+        run: (set -o pipefail && go test -v -covermode=count -json ./... | tee test.json)
       - name: annotate go tests
         if: always()
         uses: guyarb/golang-test-annotations@v0.5.1
