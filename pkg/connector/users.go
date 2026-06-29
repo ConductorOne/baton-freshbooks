@@ -5,6 +5,7 @@ import (
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
@@ -71,8 +72,32 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 }
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
-func (u *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
-	return nil, nil, nil
+// Grants emits the user's role assignment. The role is read from the
+// business_role_name stored on the user's profile during List, so no
+// additional API call (nor a cached team-member list) is needed here.
+func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	userTrait, err := rs.GetUserTrait(user)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	businessRoleName, ok := rs.GetProfileStringValue(userTrait.GetProfile(), "business_role_name")
+	if !ok || businessRoleName == "" {
+		// User has no role assignment.
+		return nil, nil, nil
+	}
+
+	roleResource, err := newRoleResource(businessRoleName)
+	if err != nil {
+		return nil, nil, err
+	}
+	if roleResource == nil {
+		// Unknown role name; nothing to grant.
+		return nil, nil, nil
+	}
+
+	roleGrant := grant.NewGrant(roleResource, permissionName, user.Id)
+	return []*v2.Grant{roleGrant}, nil, nil
 }
 
 func newUserBuilder(client *client.FreshBooksClient) *userBuilder {
@@ -93,6 +118,7 @@ func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.Re
 		"last_name":           teamMember.LastName,
 		"active":              teamMember.Active,
 		"invitation_accepted": teamMember.InvitationDateAccepted,
+		"business_role_name":  teamMember.BusinessRoleName,
 	}
 
 	userTraits := []rs.UserTraitOption{
