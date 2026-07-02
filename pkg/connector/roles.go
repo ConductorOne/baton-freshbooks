@@ -2,13 +2,9 @@ package connector
 
 import (
 	"context"
-	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
-	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
-	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
@@ -16,11 +12,19 @@ import (
 
 const permissionName = "assigned"
 
+// availableRoles is the fixed set of FreshBooks roles. They are not creatable
+// or modifiable via the API, so we declare them statically.
+var availableRoles = []client.Role{
+	{RoleName: "admin", BusinessRoleName: "owner"},                 // Admin Role.
+	{RoleName: "manager", BusinessRoleName: "business_manager"},    // Manager Role.
+	{RoleName: "employee", BusinessRoleName: "business_employee"},  // Employee Role.
+	{RoleName: "contractor", BusinessRoleName: "contractor"},       // Contractor Role.
+	{RoleName: "accountant", BusinessRoleName: "no_seat_employee"}, // Accountant Role.
+}
+
 type roleBuilder struct {
-	resourceType     *v2.ResourceType
-	teamMembers      []client.TeamMember
-	teamMembersMutex sync.RWMutex
-	client           *client.FreshBooksClient
+	resourceType *v2.ResourceType
+	client       *client.FreshBooksClient
 }
 
 func (r *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -28,29 +32,21 @@ func (r *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 }
 
 // List retrieves a hardcoded list of available Roles, since they are fixed (not modifications neither creation allowed by the platform) and cannot be requested to the API.
-func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	availableRoles := []client.Role{
-		{RoleName: "admin", BusinessRoleName: "owner"},                 // Admin Role.
-		{RoleName: "manager", BusinessRoleName: "business_manager"},    // Manager Role.
-		{RoleName: "employee", BusinessRoleName: "business_employee"},  // Employee Role.
-		{RoleName: "contractor", BusinessRoleName: "contractor"},       // Contractor Role.
-		{RoleName: "accountant", BusinessRoleName: "no_seat_employee"}, // Accountant Role.
-	}
-
+func (r *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
 	var ret []*v2.Resource
 	for _, role := range availableRoles {
 		roleResource, err := parseIntoRoleResource(role, nil)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		ret = append(ret, roleResource)
 	}
 
-	return ret, "", nil, nil
+	return ret, nil, nil
 }
 
-func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
 	var ret []*v2.Entitlement
 
 	assigmentOptions := []entitlement.EntitlementOption{
@@ -60,75 +56,16 @@ func (r *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 	}
 	ret = append(ret, entitlement.NewPermissionEntitlement(resource, permissionName, assigmentOptions...))
 
-	return ret, "", nil, nil
+	return ret, nil, nil
 }
 
-func (r *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	var ret []*v2.Grant
-
-	teamMembers, err := r.GetAllTeamMembers(ctx)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	for _, teamMember := range teamMembers {
-		if teamMember.BusinessRoleName == resource.Id.Resource {
-			userResource, err := parseIntoUserResource(teamMember, nil)
-			if err != nil {
-				return nil, "", nil, err
-			}
-
-			membershipGrant := grant.NewGrant(resource, permissionName, userResource.Id)
-			ret = append(ret, membershipGrant)
-		}
-	}
-
-	return ret, "", nil, nil
-}
-
-func (r *roleBuilder) GetAllTeamMembers(ctx context.Context) ([]client.TeamMember, error) {
-	r.teamMembersMutex.Lock()
-	defer r.teamMembersMutex.Unlock()
-
-	var ret []client.TeamMember
-	if len(r.teamMembers) > 0 {
-		return r.teamMembers, nil
-	}
-
-	err := r.client.EnsureBusinessID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	paginationToken := pagination.Token{Size: 50, Token: ""}
-	for {
-		bag, pageToken, err := getToken(&paginationToken, userResourceType)
-		if err != nil {
-			return nil, err
-		}
-
-		teamMembers, nextPageToken, _, err := r.client.ListTeamMembers(ctx, client.PageOptions{
-			Page:    pageToken,
-			PerPage: paginationToken.Size,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		ret = append(ret, teamMembers...)
-
-		err = bag.Next(nextPageToken)
-		if err != nil {
-			return nil, err
-		}
-
-		if nextPageToken == "" {
-			break
-		}
-		paginationToken.Token = nextPageToken
-	}
-
-	return ret, nil
+// Grants for role assignments are emitted from userBuilder.Grants instead of
+// here: each team member carries its role in business_role_name, which is
+// stored on the user resource during sync. Emitting from the user side avoids
+// re-paginating the full team-member list (already fetched by userBuilder.List)
+// and keeps the connector stateless across lambda invocations.
+func (r *roleBuilder) Grants(_ context.Context, _ *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 // parseIntoRoleResource parses a role from FreshBooks into a Role Resource.
@@ -148,6 +85,18 @@ func parseIntoRoleResource(role client.Role, _ *v2.ResourceId) (*v2.Resource, er
 	}
 
 	return ret, nil
+}
+
+// newRoleResource builds the role resource for a given business_role_name, or
+// returns nil when the name does not map to a known role.
+func newRoleResource(businessRoleName string) (*v2.Resource, error) {
+	for _, role := range availableRoles {
+		if role.BusinessRoleName == businessRoleName {
+			return parseIntoRoleResource(role, nil)
+		}
+	}
+
+	return nil, nil
 }
 
 func newRoleBuilder(c *client.FreshBooksClient) *roleBuilder {

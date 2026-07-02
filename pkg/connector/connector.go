@@ -6,9 +6,13 @@ import (
 	"io"
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
+	cfg "github.com/conductorone/baton-freshbooks/pkg/config"
+
+	"golang.org/x/oauth2"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/cli"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
@@ -18,9 +22,9 @@ type Connector struct {
 
 type Option func(*Connector) error
 
-// ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+// ResourceSyncers returns a ResourceSyncerV2 for each resource type that should be synced from the upstream service.
+func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncerV2 {
+	return []connectorbuilder.ResourceSyncerV2{
 		newUserBuilder(d.client),
 		newRoleBuilder(d.client),
 	}
@@ -61,6 +65,18 @@ func WithAccessToken(ctx context.Context, accessToken, baseURL string) Option {
 	}
 }
 
+func WithTokenSource(ctx context.Context, tokenSource oauth2.TokenSource) Option {
+	return func(c *Connector) error {
+		fbc, err := client.New(ctx, client.WithTokenSource(tokenSource))
+		if err != nil {
+			return fmt.Errorf("error applying option WithTokenSource: %w", err)
+		}
+
+		c.client = fbc
+		return nil
+	}
+}
+
 // Asset takes an input AssetRef and attempts to fetch it using the connector's authenticated http client
 // It streams a response, always starting with a metadata object, following by chunked payloads for the asset.
 func (d *Connector) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.ReadCloser, error) {
@@ -92,4 +108,32 @@ func New(_ context.Context, opts ...Option) (*Connector, error) {
 	}
 
 	return connector, nil
+}
+
+// NewLambdaConnector is the entry point used by config.RunConnector.
+func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
+	var connectorOpts []Option
+
+	tokenSource := cliOpts.TokenSource
+
+	switch {
+	case tokenSource != nil:
+		// Running under C1 with the OAuth2 field configured: the SDK supplies a
+		// managed token source that handles refresh.
+		connectorOpts = append(connectorOpts, WithTokenSource(ctx, tokenSource))
+	case fbc.AccessToken != "":
+		connectorOpts = append(connectorOpts, WithAccessToken(ctx, fbc.AccessToken, fbc.BaseUrl))
+	case fbc.RefreshToken != "" && fbc.FreshbooksClientId != "" && fbc.FreshbooksClientSecret != "":
+		connectorOpts = append(connectorOpts, WithRefreshToken(ctx, fbc.RefreshToken, fbc.FreshbooksClientId, fbc.FreshbooksClientSecret, fbc.BaseUrl))
+	}
+
+	if len(connectorOpts) == 0 {
+		return nil, nil, fmt.Errorf("[token] or [refresh-token, fb-client-id, fb-client-secret] argumetns must provided")
+	}
+
+	c, err := New(ctx, connectorOpts...)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, nil, nil
 }

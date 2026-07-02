@@ -1,3 +1,5 @@
+//go:build integration
+
 package connector
 
 import (
@@ -9,6 +11,7 @@ import (
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
+	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,12 +23,12 @@ var (
 	clientID, _      = os.LookupEnv("FRESHBOOKS_CLIENT_ID")
 	clientSecret, _  = os.LookupEnv("FRESHBOOKS_CLIENT_SECRET")
 	parentResourceID = &v2.ResourceId{}
-	paginationToken  = &pagination.Token{Size: 50, Token: ""}
+	syncOpAttrs      = rs.SyncOpAttrs{PageToken: pagination.Token{Size: 50}}
 )
 
 func TestUserBuilderListWithAcessToken(t *testing.T) {
 	if accessToken == "" {
-		t.Fatal("param token missing")
+		t.Skip("FRESHBOOKS_ACCESS_TOKEN not set, skipping integration test")
 	}
 
 	c, err := client.New(
@@ -38,14 +41,14 @@ func TestUserBuilderListWithAcessToken(t *testing.T) {
 	}
 	u := newUserBuilder(c)
 
-	users, _, _, err := u.List(ctx, parentResourceID, paginationToken)
+	users, _, err := u.List(ctx, parentResourceID, syncOpAttrs)
 	assert.Nil(t, err)
 	assert.NotNil(t, users)
 }
 
 func TestUserBuilderListWithRefreshToken(t *testing.T) {
 	if refreshToken == "" && clientID == "" && clientSecret == "" {
-		t.Fatal("the params refresh-token, fb-client-id and fb-client-secret must be used")
+		t.Skip("FRESHBOOKS_REFRESH_TOKEN, FRESHBOOKS_CLIENT_ID, FRESHBOOKS_CLIENT_SECRET not set, skipping integration test")
 	}
 
 	c, err := client.New(
@@ -58,7 +61,7 @@ func TestUserBuilderListWithRefreshToken(t *testing.T) {
 	}
 
 	r := newRoleBuilder(c)
-	roles, _, _, err := r.List(ctx, parentResourceID, paginationToken)
+	roles, _, err := r.List(ctx, parentResourceID, syncOpAttrs)
 	assert.Nil(t, err)
 	assert.NotNil(t, roles)
 }
