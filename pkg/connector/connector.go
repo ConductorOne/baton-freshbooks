@@ -19,8 +19,10 @@ import (
 type Connector struct {
 	client *client.FreshBooksClient
 	// syncRoles reports whether the role resource type is included in the
-	// customer's sync filter. When false, userBuilder must not emit the
-	// cross-type role grants it derives from each team member's profile.
+	// customer's sync filter. userBuilder uses it to annotate the user
+	// resource type so the SDK skips calling Grants (which derives
+	// cross-type role grants from each team member's profile) when role
+	// isn't being synced.
 	syncRoles bool
 }
 
@@ -35,8 +37,9 @@ func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.Resour
 }
 
 // WithSyncRoles records whether the role resource type will be synced under
-// the current sync filter, so userBuilder can decide whether to emit the
-// role grants it derives cross-type from team member profiles.
+// the current sync filter, so userBuilder can annotate its resource type to
+// tell the SDK whether to skip the cross-type role grants it derives from
+// team member profiles.
 func WithSyncRoles(syncRoles bool) Option {
 	return func(c *Connector) error {
 		c.syncRoles = syncRoles

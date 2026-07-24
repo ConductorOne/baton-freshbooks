@@ -5,8 +5,10 @@ import (
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/protobuf/proto"
 )
 
 type userBuilder struct {
@@ -18,8 +20,32 @@ type userBuilder struct {
 	syncRoles bool
 }
 
+// ResourceType returns the user resource type, annotated to tell the SDK
+// which of Entitlements/Grants it can skip calling for user resources.
+// Entitlements always returns nil for users (they have no entitlements of
+// their own), so SkipEntitlements is always set. Grants only ever emits the
+// cross-type role grant described above, so when the role resource type is
+// excluded from the sync filter, SkipEntitlementsAndGrants is set instead so
+// the SDK skips Grants too.
+//
+// userResourceType is a shared package-level var (roleBuilder also
+// references it indirectly via entitlement.WithGrantableTo), so it is cloned
+// here rather than mutated in place.
 func (u *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
-	return userResourceType
+	rt, ok := proto.Clone(userResourceType).(*v2.ResourceType)
+	if !ok {
+		return userResourceType
+	}
+
+	annos := annotations.Annotations(rt.GetAnnotations())
+	if u.syncRoles {
+		annos.Append(&v2.SkipEntitlements{})
+	} else {
+		annos.Append(&v2.SkipEntitlementsAndGrants{})
+	}
+	rt.SetAnnotations(annos)
+
+	return rt
 }
 
 // List returns all the users from the database as resource objects.
@@ -52,7 +78,7 @@ func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 	}
 
 	for _, teamMember := range teamMembers {
-		userResource, err := parseIntoUserResource(teamMember, parentResourceID, u.syncRoles)
+		userResource, err := parseIntoUserResource(teamMember, parentResourceID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -80,14 +106,11 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 // additional API call (nor a cached team-member list) is needed here.
 //
 // This is a cross-type emission: role grants are produced from the user
-// resource instead of roleBuilder.Grants. It must stay gated on syncRoles so
-// a sync filter that excludes "role" doesn't still emit grants referencing
-// it.
+// resource instead of roleBuilder.Grants. When the role resource type is
+// excluded from the sync filter, the SDK skips calling this method entirely
+// because ResourceType() annotates the user resource type with
+// SkipEntitlementsAndGrants in that case.
 func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
-	if !u.syncRoles {
-		return nil, nil, nil
-	}
-
 	userTrait, err := rs.GetUserTrait(user)
 	if err != nil {
 		return nil, nil, err
@@ -121,12 +144,7 @@ func newUserBuilder(client *client.FreshBooksClient, syncRoles bool) *userBuilde
 }
 
 // parseIntoUserResource parses a TeamMember (users from FreshBooks) into a User Resource.
-//
-// syncRoles indicates whether the role resource type is being synced. Users
-// never have entitlements of their own (Entitlements always returns nil) and
-// only ever emit grants for roles, so when syncRoles is false the SDK can
-// skip calling Entitlements/Grants for this resource entirely.
-func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.ResourceId, syncRoles bool) (*v2.Resource, error) {
+func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	var userStatus = v2.UserTrait_Status_STATUS_ENABLED
 
 	profile := map[string]interface{}{
@@ -151,17 +169,12 @@ func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.Re
 		displayName = teamMember.Email
 	}
 
-	resourceOpts := []rs.ResourceOption{rs.WithParentResourceID(parentResourceID)}
-	if !syncRoles {
-		resourceOpts = append(resourceOpts, rs.WithAnnotation(&v2.SkipEntitlementsAndGrants{}))
-	}
-
 	ret, err := rs.NewUserResource(
 		displayName,
 		userResourceType,
 		teamMember.UUID,
 		userTraits,
-		resourceOpts...,
+		rs.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
 		return nil, err

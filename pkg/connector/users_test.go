@@ -23,10 +23,13 @@ func testTeamMember() client.TeamMember {
 	}
 }
 
-func TestUserBuilderGrants_RoleSyncEnabled_EmitsRoleGrant(t *testing.T) {
+// Grants itself is unconditional regardless of the sync filter; the SDK
+// decides whether to call it at all based on the annotation ResourceType
+// sets, exercised below.
+func TestUserBuilderGrants_EmitsRoleGrant(t *testing.T) {
 	u := newUserBuilder(nil, true)
 
-	userResource, err := parseIntoUserResource(testTeamMember(), nil, true)
+	userResource, err := parseIntoUserResource(testTeamMember(), nil)
 	require.NoError(t, err)
 
 	grants, _, err := u.Grants(context.Background(), userResource, rs.SyncOpAttrs{})
@@ -34,31 +37,32 @@ func TestUserBuilderGrants_RoleSyncEnabled_EmitsRoleGrant(t *testing.T) {
 	assert.Len(t, grants, 1)
 }
 
-func TestUserBuilderGrants_RoleSyncDisabled_EmitsNoGrant(t *testing.T) {
-	u := newUserBuilder(nil, false)
+func TestUserBuilderResourceType_RoleSyncEnabled_SetsSkipEntitlements(t *testing.T) {
+	u := newUserBuilder(nil, true)
 
-	userResource, err := parseIntoUserResource(testTeamMember(), nil, false)
-	require.NoError(t, err)
+	rt := u.ResourceType(context.Background())
 
-	grants, _, err := u.Grants(context.Background(), userResource, rs.SyncOpAttrs{})
-	require.NoError(t, err)
-	assert.Empty(t, grants)
+	annos := annotations.Annotations(rt.GetAnnotations())
+	assert.True(t, annos.Contains(&v2.SkipEntitlements{}),
+		"expected SkipEntitlements annotation when role sync is enabled")
+	assert.False(t, annos.Contains(&v2.SkipEntitlementsAndGrants{}),
+		"did not expect SkipEntitlementsAndGrants annotation when role sync is enabled, since Grants still needs to run")
 }
 
-func TestParseIntoUserResource_RoleSyncDisabled_SetsSkipEntitlementsAndGrants(t *testing.T) {
-	userResource, err := parseIntoUserResource(testTeamMember(), nil, false)
-	require.NoError(t, err)
+func TestUserBuilderResourceType_RoleSyncDisabled_SetsSkipEntitlementsAndGrants(t *testing.T) {
+	u := newUserBuilder(nil, false)
 
-	annos := annotations.Annotations(userResource.GetAnnotations())
+	rt := u.ResourceType(context.Background())
+
+	annos := annotations.Annotations(rt.GetAnnotations())
 	assert.True(t, annos.Contains(&v2.SkipEntitlementsAndGrants{}),
 		"expected SkipEntitlementsAndGrants annotation when role sync is disabled")
 }
 
-func TestParseIntoUserResource_RoleSyncEnabled_OmitsSkipEntitlementsAndGrants(t *testing.T) {
-	userResource, err := parseIntoUserResource(testTeamMember(), nil, true)
-	require.NoError(t, err)
+func TestUserBuilderResourceType_DoesNotMutatePackageLevelVar(t *testing.T) {
+	u := newUserBuilder(nil, false)
+	_ = u.ResourceType(context.Background())
 
-	annos := annotations.Annotations(userResource.GetAnnotations())
-	assert.False(t, annos.Contains(&v2.SkipEntitlementsAndGrants{}),
-		"did not expect SkipEntitlementsAndGrants annotation when role sync is enabled")
+	assert.Empty(t, userResourceType.GetAnnotations(),
+		"ResourceType must not mutate the shared package-level userResourceType var")
 }
