@@ -39,7 +39,7 @@ func TestUserBuilderListWithAcessToken(t *testing.T) {
 		message = fmt.Sprintf("error creating client: %v", err)
 		t.Fatal(message)
 	}
-	u := newUserBuilder(c)
+	u := newUserBuilder(c, true)
 
 	users, _, err := u.List(ctx, parentResourceID, syncOpAttrs)
 	assert.Nil(t, err)

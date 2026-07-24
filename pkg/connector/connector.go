@@ -18,6 +18,10 @@ import (
 
 type Connector struct {
 	client *client.FreshBooksClient
+	// syncRoles reports whether the role resource type is included in the
+	// customer's sync filter. When false, userBuilder must not emit the
+	// cross-type role grants it derives from each team member's profile.
+	syncRoles bool
 }
 
 type Option func(*Connector) error
@@ -25,8 +29,18 @@ type Option func(*Connector) error
 // ResourceSyncers returns a ResourceSyncerV2 for each resource type that should be synced from the upstream service.
 func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncerV2 {
 	return []connectorbuilder.ResourceSyncerV2{
-		newUserBuilder(d.client),
+		newUserBuilder(d.client, d.syncRoles),
 		newRoleBuilder(d.client),
+	}
+}
+
+// WithSyncRoles records whether the role resource type will be synced under
+// the current sync filter, so userBuilder can decide whether to emit the
+// role grants it derives cross-type from team member profiles.
+func WithSyncRoles(syncRoles bool) Option {
+	return func(c *Connector) error {
+		c.syncRoles = syncRoles
+		return nil
 	}
 }
 
@@ -130,6 +144,8 @@ func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.C
 	if len(connectorOpts) == 0 {
 		return nil, nil, fmt.Errorf("[token] or [refresh-token, fb-client-id, fb-client-secret] argumetns must provided")
 	}
+
+	connectorOpts = append(connectorOpts, WithSyncRoles(cliOpts.WillSyncResourceType(RoleResourceTypeID)))
 
 	c, err := New(ctx, connectorOpts...)
 	if err != nil {

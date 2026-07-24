@@ -12,6 +12,10 @@ import (
 type userBuilder struct {
 	resourceType *v2.ResourceType
 	client       *client.FreshBooksClient
+	// syncRoles reports whether the role resource type is in the customer's
+	// sync filter. Grants emits role grants derived from each team member's
+	// profile only when true; see WillSyncResourceType gating in connector.go.
+	syncRoles bool
 }
 
 func (u *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -48,7 +52,7 @@ func (u *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 	}
 
 	for _, teamMember := range teamMembers {
-		userResource, err := parseIntoUserResource(teamMember, parentResourceID)
+		userResource, err := parseIntoUserResource(teamMember, parentResourceID, u.syncRoles)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -74,7 +78,16 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 // Grants emits the user's role assignment. The role is read from the
 // business_role_name stored on the user's profile during List, so no
 // additional API call (nor a cached team-member list) is needed here.
+//
+// This is a cross-type emission: role grants are produced from the user
+// resource instead of roleBuilder.Grants. It must stay gated on syncRoles so
+// a sync filter that excludes "role" doesn't still emit grants referencing
+// it.
 func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	if !u.syncRoles {
+		return nil, nil, nil
+	}
+
 	userTrait, err := rs.GetUserTrait(user)
 	if err != nil {
 		return nil, nil, err
@@ -99,15 +112,21 @@ func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAt
 	return []*v2.Grant{roleGrant}, nil, nil
 }
 
-func newUserBuilder(client *client.FreshBooksClient) *userBuilder {
+func newUserBuilder(client *client.FreshBooksClient, syncRoles bool) *userBuilder {
 	return &userBuilder{
 		resourceType: userResourceType,
 		client:       client,
+		syncRoles:    syncRoles,
 	}
 }
 
 // parseIntoUserResource parses a TeamMember (users from FreshBooks) into a User Resource.
-func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+//
+// syncRoles indicates whether the role resource type is being synced. Users
+// never have entitlements of their own (Entitlements always returns nil) and
+// only ever emit grants for roles, so when syncRoles is false the SDK can
+// skip calling Entitlements/Grants for this resource entirely.
+func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.ResourceId, syncRoles bool) (*v2.Resource, error) {
 	var userStatus = v2.UserTrait_Status_STATUS_ENABLED
 
 	profile := map[string]interface{}{
@@ -132,12 +151,17 @@ func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.Re
 		displayName = teamMember.Email
 	}
 
+	resourceOpts := []rs.ResourceOption{rs.WithParentResourceID(parentResourceID)}
+	if !syncRoles {
+		resourceOpts = append(resourceOpts, rs.WithAnnotation(&v2.SkipEntitlementsAndGrants{}))
+	}
+
 	ret, err := rs.NewUserResource(
 		displayName,
 		userResourceType,
 		teamMember.UUID,
 		userTraits,
-		rs.WithParentResourceID(parentResourceID),
+		resourceOpts...,
 	)
 	if err != nil {
 		return nil, err
