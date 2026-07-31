@@ -75,7 +75,7 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 // business_role_name stored on the user's profile during List, so no
 // additional API call (nor a cached team-member list) is needed here.
 func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
-	businessRoleName, ok := rs.GetProfileStringValue(user.GetProfile(), "business_role_name")
+	businessRoleName, ok := rs.GetProfileStringValue(rs.GetProfile(user), "business_role_name")
 	if !ok || businessRoleName == "" {
 		// User has no role assignment.
 		return nil, nil, nil
