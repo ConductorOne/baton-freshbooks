@@ -75,12 +75,7 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 // business_role_name stored on the user's profile during List, so no
 // additional API call (nor a cached team-member list) is needed here.
 func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
-	userTrait, err := rs.GetUserTrait(user)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	businessRoleName, ok := rs.GetProfileStringValue(userTrait.GetProfile(), "business_role_name")
+	businessRoleName, ok := rs.GetProfileStringValue(user.GetProfile(), "business_role_name")
 	if !ok || businessRoleName == "" {
 		// User has no role assignment.
 		return nil, nil, nil
@@ -121,8 +116,6 @@ func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.Re
 	}
 
 	userTraits := []rs.UserTraitOption{
-		rs.WithUserProfile(profile),
-		rs.WithStatus(userStatus),
 		rs.WithUserLogin(teamMember.Email),
 		rs.WithEmail(teamMember.Email, true),
 	}
@@ -137,6 +130,8 @@ func parseIntoUserResource(teamMember client.TeamMember, parentResourceID *v2.Re
 		userResourceType,
 		teamMember.UUID,
 		userTraits,
+		rs.WithResourceProfile(profile),
+		rs.WithResourceStatus(v2.Status_ResourceStatus(userStatus), ""),
 		rs.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {

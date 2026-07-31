@@ -75,11 +75,9 @@ func parseIntoRoleResource(role client.Role, _ *v2.ResourceId) (*v2.Resource, er
 		"name": role.RoleName,
 	}
 
-	roleTraits := []rs.RoleTraitOption{
-		rs.WithRoleProfile(profile),
-	}
+	roleTraits := []rs.RoleTraitOption{}
 
-	ret, err := rs.NewRoleResource(role.RoleName, roleResourceType, role.BusinessRoleName, roleTraits)
+	ret, err := rs.NewRoleResource(role.RoleName, roleResourceType, role.BusinessRoleName, roleTraits, rs.WithResourceProfile(profile))
 	if err != nil {
 		return nil, err
 	}
