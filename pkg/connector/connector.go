@@ -18,6 +18,18 @@ import (
 
 type Connector struct {
 	client *client.FreshBooksClient
+	// skipRoleResourceType reports whether role is excluded from the sync
+	// filter. Named for the skip condition so the zero value is safe: main.go
+	// registers a zero-value Connector{} as the capabilities factory.
+	skipRoleResourceType bool
+}
+
+// WithSkipRoleResourceType records that role is excluded from this sync.
+func WithSkipRoleResourceType(skip bool) Option {
+	return func(c *Connector) error {
+		c.skipRoleResourceType = skip
+		return nil
+	}
 }
 
 type Option func(*Connector) error
@@ -25,7 +37,7 @@ type Option func(*Connector) error
 // ResourceSyncers returns a ResourceSyncerV2 for each resource type that should be synced from the upstream service.
 func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncerV2 {
 	return []connectorbuilder.ResourceSyncerV2{
-		newUserBuilder(d.client),
+		newUserBuilder(d.client, d.skipRoleResourceType),
 		newRoleBuilder(d.client),
 	}
 }
@@ -130,6 +142,10 @@ func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.C
 	if len(connectorOpts) == 0 {
 		return nil, nil, fmt.Errorf("[token] or [refresh-token, fb-client-id, fb-client-secret] argumetns must provided")
 	}
+
+	// nil cliOpts means no filter, so nothing is skipped.
+	connectorOpts = append(connectorOpts,
+		WithSkipRoleResourceType(cliOpts != nil && !cliOpts.WillSyncResourceType(RoleResourceTypeID)))
 
 	c, err := New(ctx, connectorOpts...)
 	if err != nil {

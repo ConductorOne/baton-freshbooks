@@ -5,8 +5,10 @@ import (
 
 	"github.com/conductorone/baton-freshbooks/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/protobuf/proto"
 )
 
 type userBuilder struct {
@@ -15,7 +17,7 @@ type userBuilder struct {
 }
 
 func (u *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
-	return userResourceType
+	return u.resourceType
 }
 
 // List returns all the users from the database as resource objects.
@@ -94,9 +96,21 @@ func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAt
 	return []*v2.Grant{roleGrant}, nil, nil
 }
 
-func newUserBuilder(client *client.FreshBooksClient) *userBuilder {
+// newUserBuilder returns the user syncer. Users have no entitlements of their
+// own, and their only grants are cross-type role grants, so when role is
+// excluded from the sync the grants pass is skipped too.
+func newUserBuilder(client *client.FreshBooksClient, skipRoleResourceType bool) *userBuilder {
+	rt := proto.Clone(userResourceType).(*v2.ResourceType)
+	annos := annotations.Annotations(rt.GetAnnotations())
+	if skipRoleResourceType {
+		annos.Update(&v2.SkipEntitlementsAndGrants{})
+	} else {
+		annos.Update(&v2.SkipEntitlements{})
+	}
+	rt.Annotations = annos
+
 	return &userBuilder{
-		resourceType: userResourceType,
+		resourceType: rt,
 		client:       client,
 	}
 }
