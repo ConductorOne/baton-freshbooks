@@ -14,6 +14,10 @@ import (
 type userBuilder struct {
 	resourceType *v2.ResourceType
 	client       *client.FreshBooksClient
+	// skipRoleResourceType reports whether role is excluded from the sync, so
+	// Grants can suppress role grants on its own rather than relying solely on
+	// the SkipEntitlementsAndGrants annotation.
+	skipRoleResourceType bool
 }
 
 func (u *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -77,6 +81,11 @@ func (u *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ rs.SyncO
 // business_role_name stored on the user's profile during List, so no
 // additional API call (nor a cached team-member list) is needed here.
 func (u *userBuilder) Grants(_ context.Context, user *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	if u.skipRoleResourceType {
+		// Role is excluded from the sync, so a role grant would dangle.
+		return nil, nil, nil
+	}
+
 	businessRoleName, ok := rs.GetProfileStringValue(rs.GetProfile(user), "business_role_name")
 	if !ok || businessRoleName == "" {
 		// User has no role assignment.
@@ -110,8 +119,9 @@ func newUserBuilder(client *client.FreshBooksClient, skipRoleResourceType bool) 
 	rt.Annotations = annos
 
 	return &userBuilder{
-		resourceType: rt,
-		client:       client,
+		resourceType:         rt,
+		client:               client,
+		skipRoleResourceType: skipRoleResourceType,
 	}
 }
 

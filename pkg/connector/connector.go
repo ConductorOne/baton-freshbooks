@@ -126,7 +126,11 @@ func New(_ context.Context, opts ...Option) (*Connector, error) {
 func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
 	var connectorOpts []Option
 
-	tokenSource := cliOpts.TokenSource
+	// nil cliOpts means no SDK-supplied token source and no sync filter.
+	var tokenSource oauth2.TokenSource
+	if cliOpts != nil {
+		tokenSource = cliOpts.TokenSource
+	}
 
 	switch {
 	case tokenSource != nil:
@@ -143,7 +147,7 @@ func NewLambdaConnector(ctx context.Context, fbc *cfg.Freshbooks, cliOpts *cli.C
 		return nil, nil, fmt.Errorf("[token] or [refresh-token, fb-client-id, fb-client-secret] argumetns must provided")
 	}
 
-	// nil cliOpts means no filter, so nothing is skipped.
+	// nil cliOpts means no filter, so nothing is skipped (see above).
 	connectorOpts = append(connectorOpts,
 		WithSkipRoleResourceType(cliOpts != nil && !cliOpts.WillSyncResourceType(RoleResourceTypeID)))
 
