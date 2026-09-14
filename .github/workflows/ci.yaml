@@ -67,7 +67,7 @@ jobs:
           go build -o baton-freshbooks ./cmd/baton-freshbooks
           go build -o test-server ./cmd/test-server
       - name: Install baton
-        run: go install github.com/conductorone/baton/cmd/baton@main
+        uses: ConductorOne/github-workflows/actions/get-baton@v4
       - name: Start test server
         run: ./test-server &
       - name: Wait for test server
